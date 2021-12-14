@@ -4,29 +4,55 @@ from pynput.keyboard import Controller
 
 K = Controller()
 
+class Player:
+    def __init__(self, music: str, interval: float = 0.1) -> None:
+        self.music = music.replace('\n', '').lower()
+        self.interval = interval
+        self.idx = 0
+        self.end = len(self.music)
 
-def play(music: str, interval: float = 0.1):
-    music = music.replace('\n', '').lower()
-    idx = 0
-    while idx < len(music):
-        if music[idx] == ' ':
-            time.sleep(interval)
-        else:
-            keys = []
-            if music[idx] == '(':
-                idx += 1
-                while music[idx] != ')':
-                    keys.append(music[idx])
-                    idx += 1
-            else:
-                keys.append(music[idx])
-            for key in keys:
-                K.press(key)
-            time.sleep(interval / 2)
-            for key in keys:
-                K.release(key)
-            time.sleep(interval / 2)
-        idx += 1
+    def next(self) -> str:
+        self.idx += 1
+        return self.music[self.idx - 1]
+
+    def until(self, ch: str) -> str:
+        ret = []
+        while (c := self.next()) != ch:
+            ret.append(c)
+        return ''.join(ret)
+    
+    @property
+    def is_end(self):
+        return self.idx >= self.end
+
+    def sleep(self):
+        time.sleep(self.interval)
+
+    def half_sleep(self):
+        time.sleep(self.interval / 2)
+
+    def click(self, keys: str):
+        for key in keys:
+            K.press(key)
+        self.half_sleep()
+        for key in keys:
+            K.release(key)
+        self.half_sleep()
+
+    def play(self):
+        while not self.is_end:
+            match self.next():
+                case ' ':
+                    self.sleep()
+                case '#':
+                    self.interval *= float(self.until('#'))
+                case '$':
+                    self.interval /= float(self.until('$'))
+                case '(':
+                    self.click(self.until(')'))
+                case _ as key:
+                    self.click(key)
+
 
 
 if __name__ == '__main__':
@@ -41,4 +67,4 @@ if __name__ == '__main__':
     music_file = Path('data') / Path(args.music)
     time.sleep(3)
     print('start')
-    play(music_file.read_text(encoding='utf8'), args.interval)
+    Player(music_file.read_text(encoding='utf8'), args.interval).play()
